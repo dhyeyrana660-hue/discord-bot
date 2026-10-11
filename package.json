@@ -1,0 +1,15 @@
+{
+  "name": "discord-server-bot",
+  "version": "1.0.0",
+  "description": "A full-feature Discord bot starter with moderation, utilities, and sticky message support.",
+  "main": "src/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.5"
+  }
+}
