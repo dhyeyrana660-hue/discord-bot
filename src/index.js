@@ -12,7 +12,7 @@ const {
 } = require('discord.js');
 
 const config = require('./config');
-const { getGuildSettings, saveGuildSettings, getUserBalance, saveUserBalance } = require('./data');
+const { getGuildSettings, saveGuildSettings, getUserBalance, saveUserBalance, getUserLevel, saveUserLevel } = require('./data');
 
 const client = new Client({
   intents: [
@@ -28,6 +28,7 @@ const client = new Client({
 
 client.commands = new Collection();
 client.musicQueues = new Map();
+client.userCooldowns = new Map();
 
 const commands = [];
 
@@ -126,6 +127,71 @@ client.on('guildMemberRemove', async (member) => {
   }
 });
 
+client.on('messageCreate', async (message) => {
+  if (message.author.bot || !message.guild) return;
+
+  const settings = getGuildSettings(message.guild.id);
+
+  // Anti-spam check
+  const userId = message.author.id;
+  const now = Date.now();
+  const cooldowns = client.userCooldowns.get(userId) || [];
+  const recentMessages = cooldowns.filter((time) => now - time < 5000);
+
+  if (recentMessages.length >= 5) {
+    const logChannel = message.guild.channels.cache.get(settings.logChannelId);
+    if (logChannel) {
+      const spamEmbed = new EmbedBuilder()
+        .setColor('#FEE75C')
+        .setTitle('Anti-Spam Triggered')
+        .setDescription(`<@${userId}> was flagged for spam.`)
+        .setTimestamp();
+
+      logChannel.send({ embeds: [spamEmbed] }).catch(() => {});
+    }
+    return message.reply({ content: 'Please stop spamming!', ephemeral: true }).catch(() => {});
+  }
+
+  recentMessages.push(now);
+  client.userCooldowns.set(userId, recentMessages);
+
+  // Leveling XP gain
+  if (settings.levelingEnabled) {
+    const xpGain = Math.floor(Math.random() * 15) + 5;
+    const level = getUserLevel(message.guild.id, userId);
+    level.xp = (level.xp || 0) + xpGain;
+
+    const xpNeeded = (level.level || 1) * 100;
+    if (level.xp >= xpNeeded) {
+      level.level = (level.level || 1) + 1;
+      level.xp = 0;
+      saveUserLevel(message.guild.id, userId, level);
+      message.reply({ content: `🎉 ${message.author}, you've leveled up to level **${level.level}**!` }).catch(() => {});
+    } else {
+      saveUserLevel(message.guild.id, userId, level);
+    }
+  }
+
+  // Prefix commands
+  if (!message.content.startsWith(config.defaultPrefix)) return;
+
+  const args = message.content.slice(config.defaultPrefix.length).trim().split(/\s+/);
+  const commandName = args.shift()?.toLowerCase();
+
+  if (!commandName) return;
+
+  const command = client.commands.get(commandName) ||
+    [...client.commands.values()].find((cmd) => cmd.aliases?.includes(commandName));
+
+  if (!command) return;
+
+  try {
+    await command.execute(message, args, client);
+  } catch (error) {
+    console.error(error);
+  }
+});
+
 client.on('messageDelete', async (message) => {
   if (!message.guild || message.author?.bot) return;
 
@@ -219,6 +285,46 @@ client.on('messageReactionRemove', async (reaction, user) => {
 });
 
 client.on('interactionCreate', async (interaction) => {
+  if (interaction.isButton()) {
+    if (interaction.customId === 'create_ticket') {
+      const settings = getGuildSettings(interaction.guild.id);
+      const ticketCategory = interaction.guild.channels.cache.get(settings.ticketCategoryId);
+
+      if (!ticketCategory) {
+        return interaction.reply({ content: 'Ticket system is not configured.', ephemeral: true });
+      }
+
+      const ticketChannel = await interaction.guild.channels.create({
+        name: `ticket-${interaction.user.username}`,
+        type: 0,
+        parent: ticketCategory,
+        permissionOverwrites: [
+          {
+            id: interaction.guild.id,
+            deny: ['ViewChannel'],
+          },
+          {
+            id: interaction.user.id,
+            allow: ['ViewChannel', 'SendMessages'],
+          },
+        ],
+      }).catch(() => null);
+
+      if (!ticketChannel) {
+        return interaction.reply({ content: 'Failed to create ticket channel.', ephemeral: true });
+      }
+
+      const ticketEmbed = new EmbedBuilder()
+        .setColor('#5865F2')
+        .setTitle('Support Ticket')
+        .setDescription(`Hello <@${interaction.user.id}>, please describe your issue below.`)
+        .setTimestamp();
+
+      await ticketChannel.send({ embeds: [ticketEmbed] });
+      await interaction.reply({ content: `✅ Ticket created: <#${ticketChannel.id}>`, ephemeral: true });
+    }
+  }
+
   if (!interaction.isChatInputCommand()) return;
 
   const command = client.commands.get(interaction.commandName);
@@ -239,28 +345,6 @@ client.on('interactionCreate', async (interaction) => {
     } else {
       await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
     }
-  }
-});
-
-client.on('messageCreate', async (message) => {
-  if (message.author.bot || !message.content.startsWith(config.defaultPrefix)) {
-    return;
-  }
-
-  const args = message.content.slice(config.defaultPrefix.length).trim().split(/\s+/);
-  const commandName = args.shift()?.toLowerCase();
-
-  if (!commandName) return;
-
-  const command = client.commands.get(commandName) ||
-    [...client.commands.values()].find((cmd) => cmd.aliases?.includes(commandName));
-
-  if (!command) return;
-
-  try {
-    await command.execute(message, args, client);
-  } catch (error) {
-    console.error(error);
   }
 });
 

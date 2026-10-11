@@ -1,7 +1,7 @@
 {
   "name": "discord-server-bot",
   "version": "1.0.0",
-  "description": "A full-feature Discord bot starter with moderation, utilities, sticky message support, welcome/goodbye, autorole, reaction roles, logging, economy, and music commands.",
+  "description": "A full-feature Discord bot starter with moderation, utilities, sticky message support, welcome/goodbye, autorole, reaction roles, logging, economy, music, anti-spam, tickets, announcements, giveaways, and leveling.",
   "main": "src/index.js",
   "type": "commonjs",
   "scripts": {

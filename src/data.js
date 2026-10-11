@@ -4,6 +4,8 @@ const path = require('node:path');
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 const ECONOMY_FILE = path.join(DATA_DIR, 'economy.json');
+const LEVELS_FILE = path.join(DATA_DIR, 'levels.json');
+const GIVEAWAYS_FILE = path.join(DATA_DIR, 'giveaways.json');
 
 function ensureDataFiles() {
   if (!fs.existsSync(DATA_DIR)) {
@@ -16,6 +18,14 @@ function ensureDataFiles() {
 
   if (!fs.existsSync(ECONOMY_FILE)) {
     fs.writeFileSync(ECONOMY_FILE, JSON.stringify({}, null, 2));
+  }
+
+  if (!fs.existsSync(LEVELS_FILE)) {
+    fs.writeFileSync(LEVELS_FILE, JSON.stringify({}, null, 2));
+  }
+
+  if (!fs.existsSync(GIVEAWAYS_FILE)) {
+    fs.writeFileSync(GIVEAWAYS_FILE, JSON.stringify({}, null, 2));
   }
 }
 
@@ -43,6 +53,8 @@ function getGuildSettings(guildId) {
       logChannelId: null,
       autoRoleId: null,
       reactionRoles: {},
+      ticketCategoryId: null,
+      levelingEnabled: false,
     };
     writeJSON(SETTINGS_FILE, settings);
   }
@@ -71,9 +83,38 @@ function saveUserBalance(guildId, userId, data) {
   writeJSON(ECONOMY_FILE, economy);
 }
 
+function getUserLevel(guildId, userId) {
+  const levels = readJSON(LEVELS_FILE);
+  const guildData = levels[guildId] || {};
+  const userLevel = guildData[userId] || { level: 1, xp: 0 };
+  return userLevel;
+}
+
+function saveUserLevel(guildId, userId, data) {
+  const levels = readJSON(LEVELS_FILE);
+  levels[guildId] = levels[guildId] || {};
+  levels[guildId][userId] = data;
+  writeJSON(LEVELS_FILE, levels);
+}
+
+function getGiveaways(guildId) {
+  const giveaways = readJSON(GIVEAWAYS_FILE);
+  return giveaways[guildId] || [];
+}
+
+function saveGiveaways(guildId, data) {
+  const giveaways = readJSON(GIVEAWAYS_FILE);
+  giveaways[guildId] = data;
+  writeJSON(GIVEAWAYS_FILE, giveaways);
+}
+
 module.exports = {
   getGuildSettings,
   saveGuildSettings,
   getUserBalance,
   saveUserBalance,
+  getUserLevel,
+  saveUserLevel,
+  getGiveaways,
+  saveGiveaways,
 };
