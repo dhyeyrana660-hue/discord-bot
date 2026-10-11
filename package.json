@@ -1,7 +1,7 @@
 {
   "name": "discord-server-bot",
   "version": "1.0.0",
-  "description": "A full-feature Discord bot starter with moderation, utilities, and sticky message support.",
+  "description": "A full-feature Discord bot starter with moderation, utilities, sticky message support, welcome/goodbye, autorole, reaction roles, logging, economy, and music commands.",
   "main": "src/index.js",
   "type": "commonjs",
   "scripts": {
@@ -9,7 +9,9 @@
     "dev": "node --watch src/index.js"
   },
   "dependencies": {
+    "@discordjs/voice": "^0.16.0",
     "discord.js": "^14.16.3",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "play-dl": "^1.9.9"
   }
 }

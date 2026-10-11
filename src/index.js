@@ -8,9 +8,11 @@ const {
   Routes,
   EmbedBuilder,
   ActivityType,
+  Partials,
 } = require('discord.js');
 
 const config = require('./config');
+const { getGuildSettings, saveGuildSettings, getUserBalance, saveUserBalance } = require('./data');
 
 const client = new Client({
   intents: [
@@ -19,10 +21,13 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMessageReactions,
+    GatewayIntentBits.DirectMessages,
   ],
+  partials: [Partials.Message, Partials.Channel, Partials.Reaction],
 });
 
 client.commands = new Collection();
+client.musicQueues = new Map();
 
 const commands = [];
 
@@ -79,6 +84,138 @@ client.once('ready', async () => {
   } catch (error) {
     console.error(error);
   }
+});
+
+client.on('guildMemberAdd', async (member) => {
+  const settings = getGuildSettings(member.guild.id);
+
+  if (settings.autoRoleId) {
+    const role = member.guild.roles.cache.get(settings.autoRoleId);
+    if (role) await member.roles.add(role).catch(() => {});
+  }
+
+  if (settings.welcomeChannelId) {
+    const channel = member.guild.channels.cache.get(settings.welcomeChannelId);
+    if (channel) {
+      const welcomeEmbed = new EmbedBuilder()
+        .setColor('#57F287')
+        .setTitle('Welcome!')
+        .setDescription(`Welcome to **${member.guild.name}**, <@${member.id}>! We hope you enjoy your time here.`)
+        .setThumbnail(member.displayAvatarURL({ dynamic: true }))
+        .setTimestamp();
+
+      channel.send({ embeds: [welcomeEmbed] }).catch(() => {});
+    }
+  }
+});
+
+client.on('guildMemberRemove', async (member) => {
+  const settings = getGuildSettings(member.guild.id);
+
+  if (settings.goodbyeChannelId) {
+    const channel = member.guild.channels.cache.get(settings.goodbyeChannelId);
+    if (channel) {
+      const goodbyeEmbed = new EmbedBuilder()
+        .setColor('#ED4245')
+        .setTitle('Goodbye')
+        .setDescription(`${member.user.tag} has left the server.`)
+        .setTimestamp();
+
+      channel.send({ embeds: [goodbyeEmbed] }).catch(() => {});
+    }
+  }
+});
+
+client.on('messageDelete', async (message) => {
+  if (!message.guild || message.author?.bot) return;
+
+  const settings = getGuildSettings(message.guild.id);
+  const logChannel = message.guild.channels.cache.get(settings.logChannelId);
+  if (!logChannel) return;
+
+  const logEmbed = new EmbedBuilder()
+    .setColor('#FEE75C')
+    .setTitle('Message Deleted')
+    .setDescription(`A message from <@${message.author.id}> was deleted in <#${message.channel.id}>.`)
+    .addFields(
+      { name: 'Content', value: message.content || 'No content', inline: false },
+    )
+    .setTimestamp();
+
+  logChannel.send({ embeds: [logEmbed] }).catch(() => {});
+});
+
+client.on('messageUpdate', async (_, newMessage) => {
+  if (!newMessage.guild || newMessage.author?.bot) return;
+
+  const settings = getGuildSettings(newMessage.guild.id);
+  const logChannel = newMessage.guild.channels.cache.get(settings.logChannelId);
+  if (!logChannel) return;
+
+  const logEmbed = new EmbedBuilder()
+    .setColor('#5865F2')
+    .setTitle('Message Updated')
+    .setDescription(`A message from <@${newMessage.author.id}> was edited in <#${newMessage.channel.id}>.`)
+    .addFields(
+      { name: 'New Content', value: newMessage.content || 'No content', inline: false },
+    )
+    .setTimestamp();
+
+  logChannel.send({ embeds: [logEmbed] }).catch(() => {});
+});
+
+client.on('guildBanAdd', async (ban) => {
+  const settings = getGuildSettings(ban.guild.id);
+  const logChannel = ban.guild.channels.cache.get(settings.logChannelId);
+  if (!logChannel) return;
+
+  const embed = new EmbedBuilder()
+    .setColor('#ED4245')
+    .setTitle('Member Banned')
+    .setDescription(`${ban.user.tag} was banned.`)
+    .setTimestamp();
+
+  logChannel.send({ embeds: [embed] }).catch(() => {});
+});
+
+client.on('messageReactionAdd', async (reaction, user) => {
+  if (user.bot) return;
+  if (!reaction.message.guild) return;
+
+  const settings = getGuildSettings(reaction.message.guild.id);
+  const reactionRoles = settings.reactionRoles || {};
+  const messageReactionRoles = reactionRoles[reaction.message.id] || [];
+
+  const match = messageReactionRoles.find((entry) => entry.emoji === reaction.emoji.name || entry.emoji === reaction.emoji.id);
+  if (!match) return;
+
+  const member = reaction.message.guild.members.cache.get(user.id) || await reaction.message.guild.members.fetch(user.id).catch(() => null);
+  if (!member) return;
+
+  const role = reaction.message.guild.roles.cache.get(match.roleId);
+  if (!role) return;
+
+  await member.roles.add(role).catch(() => {});
+});
+
+client.on('messageReactionRemove', async (reaction, user) => {
+  if (user.bot) return;
+  if (!reaction.message.guild) return;
+
+  const settings = getGuildSettings(reaction.message.guild.id);
+  const reactionRoles = settings.reactionRoles || {};
+  const messageReactionRoles = reactionRoles[reaction.message.id] || [];
+
+  const match = messageReactionRoles.find((entry) => entry.emoji === reaction.emoji.name || entry.emoji === reaction.emoji.id);
+  if (!match) return;
+
+  const member = reaction.message.guild.members.cache.get(user.id) || await reaction.message.guild.members.fetch(user.id).catch(() => null);
+  if (!member) return;
+
+  const role = reaction.message.guild.roles.cache.get(match.roleId);
+  if (!role) return;
+
+  await member.roles.remove(role).catch(() => {});
 });
 
 client.on('interactionCreate', async (interaction) => {

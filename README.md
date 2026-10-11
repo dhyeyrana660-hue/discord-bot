@@ -1,13 +1,19 @@
 # Discord Server Bot
 
-A full-feature Discord bot starter built with JavaScript and discord.js. It includes moderation commands, utility commands, and a stick message system using pinned messages.
+A full-feature Discord bot starter built with JavaScript and discord.js. It includes moderation, utility, economy, server automation, reaction roles, logging, and music commands.
 
 ## Features
 - Moderation: kick, ban, mute, clear messages
 - Utility: ping, server info, user info, help
 - Sticky message system: `/stick` and `/unstick`
+- Welcome and goodbye messages
+- Auto-role assignment for new members
+- Reaction-role setup
+- Server logging
+- Economy: balance, daily, work
+- Music: play, pause, skip, stop
 - Slash command support
-- Prefix command support for basic compatibility
+- Prefix command support for compatibility
 
 ## Setup
 1. Install dependencies:
@@ -38,7 +44,20 @@ A full-feature Discord bot starter built with JavaScript and discord.js. It incl
 - `/clear`
 - `/stick <message>`
 - `/unstick [message_id]`
+- `/setwelcome <channel>`
+- `/setgoodbye <channel>`
+- `/setautorole <role>`
+- `/setlogs <channel>`
+- `/reactionrole <message_id> <emoji> <role>`
+- `/balance`
+- `/daily`
+- `/work`
+- `/play <query>`
+- `/pause`
+- `/skip`
+- `/stop`
 
 ## Notes
-- `DISCORD_GUILD_ID` is optional for global commands, but including it makes testing faster in one server.
-- The `stick` command creates a pinned embed message in the current channel. This works like a “sticky message” for important notices.
+- `DISCORD_GUILD_ID` is optional for global commands, but including it makes testing faster in one guild.
+- The sticky command creates a pinned embed message in the current channel. This works like a “sticky message” for important notices.
+- For the music commands, the bot needs to be in a voice channel in the guild. If you use music heavily, consider using a more advanced music library or VPS hosting with FFmpeg installed.
